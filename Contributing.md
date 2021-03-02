@@ -10,7 +10,7 @@ Project Setup
 
 This project is developed using either IntelliJ IDEA or Android Studio. To build multiplatform projects, you need MacOS and the Xcode developer tools.
  
-Since `apollo-android` has contains a Gradle Plugin that we would like to use in tests and samples, the setup is a bit different from a traditional Gradle project and contains multiple builds. Opening the `apollo-android` will include other builds as neeeded.
+Since `apollo-android` contains a Gradle Plugin that we would like to use in tests and samples, the setup is a bit different from a traditional Gradle project and contains multiple builds. Opening the `apollo-android` will include other builds as neeeded.
 
 DOs and DON'Ts
 --------------

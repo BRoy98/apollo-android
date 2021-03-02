@@ -154,7 +154,7 @@ fun Project.configurePublishing() {
     repositories {
       maven {
         name = "pluginTest"
-        url = uri("file://${rootProject.buildDir}/localMaven")
+        url = uri("file://${rootProject.projectDir}/../build/localMaven")
       }
 
       maven {
