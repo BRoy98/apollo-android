@@ -3,9 +3,11 @@ package com.apollographql.apollo3.internal.interceptor
 import com.apollographql.apollo3.ApolloCall
 import com.apollographql.apollo3.api.Operation
 import com.apollographql.apollo3.api.ApolloResponse
+import com.apollographql.apollo3.api.ResponseAdapterCache
 import com.apollographql.apollo3.api.internal.ApolloLogger
 import com.apollographql.apollo3.cache.ApolloCacheHeaders
 import com.apollographql.apollo3.cache.normalized.ApolloStore
+import com.apollographql.apollo3.cache.normalized.internal.RealApolloStore
 import com.apollographql.apollo3.exception.ApolloException
 import com.apollographql.apollo3.exception.ApolloGenericException
 import com.apollographql.apollo3.interceptor.ApolloInterceptor
@@ -29,7 +31,8 @@ class ApolloCacheInterceptor<D : Operation.Data>(
     private val dispatcher: Executor,
     val logger: ApolloLogger,
     private val responseCallback: AtomicReference<ApolloCall.Callback<D>?>,
-    private val writeToCacheAsynchronously: Boolean
+    private val writeToCacheAsynchronously: Boolean,
+    private val responseAdapterCache: ResponseAdapterCache
 ) : ApolloInterceptor {
 
   @Volatile
@@ -83,7 +86,9 @@ class ApolloCacheInterceptor<D : Operation.Data>(
   fun resolveFromCache(request: InterceptorRequest): InterceptorResponse {
     val data = apolloStore.readOperation(
         request.operation,
-        request.cacheHeaders)
+        responseAdapterCache,
+        request.cacheHeaders,
+    )
     if (data != null) {
       logger.d("Cache HIT for operation %s", request.operation.name())
       return InterceptorResponse(
@@ -110,12 +115,13 @@ class ApolloCacheInterceptor<D : Operation.Data>(
     }
 
     val data = networkResponse.parsedResponse.get()!!.data
-    return if (data != null) {
+    return if (data != null && apolloStore is RealApolloStore) {
       val (records, changedKeys) = apolloStore.writeOperationWithRecords(
           request.operation as Operation<Operation.Data>,
           data,
           request.cacheHeaders,
-          false // don't publish here, it's done later
+          false, // don't publish here, it's done later
+          responseAdapterCache
       )
       responseCallback.get()?.onCached(records.toList())
       changedKeys
@@ -152,7 +158,10 @@ class ApolloCacheInterceptor<D : Operation.Data>(
           apolloStore.writeOptimisticUpdates(
               request.operation as Operation<Operation.Data>,
               optimisticUpdates,
-              request.uniqueId)
+              request.uniqueId,
+              responseAdapterCache,
+              true,
+          )
         }
       } catch (e: Exception) {
         logger.e(e, "failed to write operation optimistic updates, for: %s", request.operation)
